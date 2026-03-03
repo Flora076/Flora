@@ -1,10 +1,16 @@
 #!/bin/bash    paired with submit_script.sh
 set -e
 
+SRR=SRR26854895
+BASE=/omics/groups/OE0436/data/linmq/Datasets/lung_adenocarcinoma
+
+# Create output directory automatically
+mkdir -p ${BASE}/${SRR}
+
 # Run Telogator2
 python /omics/groups/OE0436/data/linmq/Telogator2-software/telogator2.py \
-    -i /omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/fastq/SRR26854882_1.fastq.gz\
-    -o /omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26854882\
+    -i ${BASE}/fastq/${SRR}_1.fastq.gz \
+    -o ${BASE}/${SRR} \
     -p 16 \
     -r ont \
     -n 10 \
