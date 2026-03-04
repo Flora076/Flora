@@ -1,2 +1,4 @@
 reading files:
 zcat file.fasta.gz | head
+
+python reduce_telomere.py --input your_input.tsv --output reduced.tsv
