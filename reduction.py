@@ -8,60 +8,90 @@ import argparse
 # -----------------------------
 def reverse_complement(seq):
     table = str.maketrans("ACGT", "TGCA")
-    return seq.translate(table)[::-1]
+    return seq.upper().translate(table)[::-1]
 
 
 # -----------------------------
-# Consensus definitions
+# Strict 6-mer Consensus Dictionary
 # -----------------------------
 CONSENSUS = {
-    "TTAGGG": "C",   # canonical
+
+    "TTAGGG": "C",
+    "CCCTAA": "C",
+
     "TCAGGG": "D",
+    "CCCTGA": "D",
+
     "TGAGGG": "E",
+    "CCTTGA": "E",
+    "CGCTGA": "E",
+    "CCGTGA": "E",
+
     "TTGGGG": "F",
-    "CGAGGG": "G",
-    "CTAGGG": "H",
-    "CTGGGG": "I",
+    "CCCTCA": "F",
+
+    "CCTCA": "G",
+    "CCGTCA": "G",
+
+    "CCCCAA": "H",
+
+    "CCCCCA": "I",
+    "CCCAAA": "I",
+
     "TAAGGG": "K",
+    "CCCTCG": "K",
+
     "TCCGGG": "L",
+    "CCCTAG": "L",
+
     "TTCGGG": "M",
-    "CTAGG":  "N",
-    "TCGGG":  "P",
+
+    "CCCGAA": "N",
+
+    "CCCCGA": "P",
+    "CCCGGA": "P",
+    "CCGGAA": "P",
+
     "TGGGGG": "Q",
-    "TTAAGGG": "R",
-    "TTAGAGGG": "S",
-    "TAGG": "T",
-    "TTGG": "V",
-    "GGGGGG": "W"
+    "CCCCCG": "Q",
+    "CCCTGG": "Q",
+
+    "CCCCAG": "R",
+
+    "CTCTAA": "S",
+    "CGCTAA": "S",
+    "CCGTAA": "S",
+    "CCTGAA": "S",
+    "CCCAGT": "S",
+    "CCCGTA": "S",
+
+    "CCCTTA": "T",
+    "CCTTAA": "T",
+
+    "CCCCTA": "V",
+
+    "GGGGGG": "W",
+
+    "CCCTCC": "Y",
+    "CCCCCC": "Y"
 }
 
-CONSENSUS_LOOKUP = CONSENSUS
 # -----------------------------
-# Greedy, non-overlapping matcher
+# Greedy 6-mer matcher
 # -----------------------------
-def reduce_sequence(sequence, lookup, min_len=6, max_len=8):
-    """
-    Greedy telomere reduction:
-    - longest motif first
-    - non-overlapping
-    """
+def reduce_sequence(sequence, lookup):
     sequence = sequence.upper()
     i = 0
     reduced = []
 
-    while i < len(sequence):
-        matched = False
+    while i <= len(sequence) - 6:
+        motif = sequence[i:i+6]
 
-        for L in range(max_len, min_len - 1, -1):
-            motif = sequence[i:i+L]
-            if motif in lookup:
-                reduced.append(lookup[motif])
-                i += L
-                matched = True
-                break
-
-        if not matched:
-            i += 1  # advance one base if no motif matched
+        if motif in lookup:
+            reduced.append(lookup[motif])
+            i += 6  # move by full motif length (non-overlapping)
+        else:
+            i += 1  # slide window by 1
 
     return reduced
 
@@ -71,38 +101,39 @@ def reduce_sequence(sequence, lookup, min_len=6, max_len=8):
 # -----------------------------
 def main():
     parser = argparse.ArgumentParser(
-        description="Build reduced telomere representation with orientation stats"
+        description="Build reduced telomere representation (strict 6-mer mode)"
     )
     parser.add_argument(
         "--input",
         required=True,
-        help="TSV with columns: sequence_name, sequence"
+        help="Input TSV file with columns: sequence_name, sequence"
     )
     parser.add_argument(
         "--output",
         default="reduced_sequences.tsv",
-        help="Output reduced representation TSV"
+        help="Output TSV file"
     )
+
     args = parser.parse_args()
 
     df = pd.read_csv(args.input, sep="\t")
 
     reduced_rows = []
-
     forward_count = 0
     reverse_count = 0
 
     for _, row in df.iterrows():
         seq_name = row["sequence_name"]
         seq = row["sequence"]
-        # Forward
-        fwd_reduced = reduce_sequence(seq, CONSENSUS_LOOKUP)
 
-        # Reverse
+        # Forward reduction
+        fwd_reduced = reduce_sequence(seq, CONSENSUS)
+
+        # Reverse reduction
         rev_seq = reverse_complement(seq)
-        rev_reduced = reduce_sequence(rev_seq, CONSENSUS_LOOKUP)
+        rev_reduced = reduce_sequence(rev_seq, CONSENSUS)
 
-        # Choose orientation ONCE per read
+        # Choose best orientation
         if len(rev_reduced) > len(fwd_reduced):
             reduced_seq = "".join(rev_reduced)
             orientation = "reverse"
@@ -122,8 +153,7 @@ def main():
     out_df = pd.DataFrame(reduced_rows)
     out_df.to_csv(args.output, sep="\t", index=False)
 
-    # Summary
-    print(f"✔ Reduced representation written to {args.output}")
+    print(f"\n✔ Reduced representation written to {args.output}")
     print("Orientation summary:")
     print(f"  Forward: {forward_count}")
     print(f"  Reverse: {reverse_count}")
@@ -131,4 +161,5 @@ def main():
 
 
 if __name__ == "__main__":
-  main ()
+    
+    main()
