@@ -1,4 +1,11 @@
 reading files:
 zcat file.fasta.gz | head
 
-python reduce_telomere.py --input your_input.tsv --output reduced.tsv
+python reduction.py \
+    --input your_input.tsv \
+    --output reduced.tsv
+
+python matched.py \
+    --input your_file.tsv \
+    --fasta_gz your_sequences.fa.gz \
+    --output matched_reads.tsv
