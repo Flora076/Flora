@@ -8,7 +8,7 @@ python reduction.py \
 python matched.py \
     --input your_file.tsv \
     --fasta_gz your_sequences.fa.gz \
-    --output matched_reads.tsv
+    --output matched_reads.fasta
 
 
 python extract.py \
