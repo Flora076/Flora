@@ -6,35 +6,47 @@ import gzip
 from Bio import SeqIO
 
 
-def load_supporting_reads(tsv_file, chromosome):
+def load_supporting_reads(tsv_file, chromosome, allele):
     """
     Load supporting reads only from rows belonging to a specific chromosome
+    and allele ID
     """
+
     df = pd.read_csv(tsv_file, sep="\t", dtype=str)
 
-    # First column = chromosome column
+    # Save original chromosome column before renaming
     chr_column = df.columns[0]
 
     # Normalize column names
     df.columns = df.columns.str.strip().str.lower()
 
     supporting_col = "supporting_reads"
+    allele_col = "allele_id"
 
     if supporting_col not in df.columns:
         raise ValueError(
-            f"'Supporting Reads' column not found. Available columns: {list(df.columns)}"
+            f"'supporting_reads' column not found. Available columns: {list(df.columns)}"
         )
 
-    # Filter rows for chosen chromosome
+    if allele_col not in df.columns:
+        raise ValueError(
+            f"'allele_id' column not found. Available columns: {list(df.columns)}"
+        )
+
+    # Filter by chromosome
     df_chr = df[df[chr_column] == chromosome]
+
+    # Filter by allele
+    df_filtered = df_chr[df_chr[allele_col] == allele]
 
     reads = set()
 
-    for cell in df_chr[supporting_col].dropna():
+    for cell in df_filtered[supporting_col].dropna():
         for r in str(cell).replace(",", " ").split():
             reads.add(r.strip())
 
-    print(f"✔ Loaded {len(reads)} reads from {chromosome}")
+    print(f"✔ Loaded {len(reads)} reads from {chromosome} | allele: {allele}")
+
     return reads
 
 
@@ -65,17 +77,22 @@ def extract_reads_from_fasta_to_tsv(fasta_gz, read_ids, output_tsv):
 def main():
 
     parser = argparse.ArgumentParser(
-        description="Extract reads from a specific chromosome and match with FASTA"
+        description="Extract reads from a specific chromosome and allele and match with FASTA"
     )
 
     parser.add_argument("--input", required=True, help="Input TSV file")
     parser.add_argument("--fasta_gz", required=True, help="Gzipped FASTA file")
-    parser.add_argument("--chr", required=True, help="Chromosome to extract (e.g. chr1)")
+    parser.add_argument("--chr", required=True, help="Chromosome to extract (e.g. chr22p)")
+    parser.add_argument("--allele", required=True, help="Allele ID (e.g. 22)")
     parser.add_argument("--output", default="matched_reads.tsv")
 
     args = parser.parse_args()
 
-    read_ids = load_supporting_reads(args.input, args.chr)
+    read_ids = load_supporting_reads(
+        args.input,
+        args.chr,
+        args.allele
+    )
 
     extract_reads_from_fasta_to_tsv(
         args.fasta_gz,
