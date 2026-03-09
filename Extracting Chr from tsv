@@ -18,7 +18,7 @@ def load_supporting_reads(tsv_file, chromosome):
     # Normalize column names
     df.columns = df.columns.str.strip().str.lower()
 
-    supporting_col = "supporting reads"
+    supporting_col = "supporting_reads"
 
     if supporting_col not in df.columns:
         raise ValueError(
