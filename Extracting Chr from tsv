@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+
+import pandas as pd
+import argparse
+import gzip
+from Bio import SeqIO
+
+
+def load_supporting_reads(tsv_file, chromosome):
+    """
+    Load supporting reads only from rows belonging to a specific chromosome
+    """
+    df = pd.read_csv(tsv_file, sep="\t", dtype=str)
+
+    # First column = chromosome column
+    chr_column = df.columns[0]
+
+    # Normalize column names
+    df.columns = df.columns.str.strip().str.lower()
+
+    supporting_col = "supporting reads"
+
+    if supporting_col not in df.columns:
+        raise ValueError(
+            f"'Supporting Reads' column not found. Available columns: {list(df.columns)}"
+        )
+
+    # Filter rows for chosen chromosome
+    df_chr = df[df[chr_column] == chromosome]
+
+    reads = set()
+
+    for cell in df_chr[supporting_col].dropna():
+        for r in str(cell).replace(",", " ").split():
+            reads.add(r.strip())
+
+    print(f"✔ Loaded {len(reads)} reads from {chromosome}")
+    return reads
+
+
+def extract_reads_from_fasta_to_tsv(fasta_gz, read_ids, output_tsv):
+
+    rows = []
+    matched = 0
+
+    with gzip.open(fasta_gz, "rt") as handle:
+        for record in SeqIO.parse(handle, "fasta"):
+
+            read_name = record.id  # e.g. SRR26854888.156
+
+            if read_name in read_ids:
+                rows.append({
+                    "read_id": read_name,
+                    "sequence": str(record.seq)
+                })
+                matched += 1
+
+    df_out = pd.DataFrame(rows)
+    df_out.to_csv(output_tsv, sep="\t", index=False)
+
+    print(f"✔ Extracted {matched} matching reads")
+    print(f"✔ Output written to {output_tsv}")
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description="Extract reads from a specific chromosome and match with FASTA"
+    )
+
+    parser.add_argument("--input", required=True, help="Input TSV file")
+    parser.add_argument("--fasta_gz", required=True, help="Gzipped FASTA file")
+    parser.add_argument("--chr", required=True, help="Chromosome to extract (e.g. chr1)")
+    parser.add_argument("--output", default="matched_reads.tsv")
+
+    args = parser.parse_args()
+
+    read_ids = load_supporting_reads(args.input, args.chr)
+
+    extract_reads_from_fasta_to_tsv(
+        args.fasta_gz,
+        read_ids,
+        args.output
+    )
+
+
+if __name__ == "__main__":
+    main()
