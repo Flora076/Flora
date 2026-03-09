@@ -15,4 +15,5 @@ python extract.py \
 --input /omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26854884/tlens_by_allele.tsv \
 --fasta_gz /omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26854884/temp/tel_reads.fa.gz \
 --chr chr22p \
---output chr22p_reads.tsv
+--allele 12 \
+--output 12_chr22p_reads.tsv
