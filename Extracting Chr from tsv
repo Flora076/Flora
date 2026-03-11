@@ -14,7 +14,7 @@ def load_supporting_reads(tsv_file, chromosome, allele):
 
     df = pd.read_csv(tsv_file, sep="\t", dtype=str)
 
-    # Save original chromosome column before renaming
+    # Save chromosome column name
     chr_column = df.columns[0]
 
     # Normalize column names
@@ -55,12 +55,16 @@ def extract_reads_from_fasta(fasta_gz, read_ids, output_fasta):
     matched = 0
 
     with gzip.open(fasta_gz, "rt") as handle, open(output_fasta, "w") as out:
+
         for record in SeqIO.parse(handle, "fasta"):
 
-            read_name = record.id  # e.g. SRR26854888.156
+            read_name = record.id   # e.g. SRR26854888.156
 
             if read_name in read_ids:
-                out.write(f">{record.id}\n{record.seq}\n")
+
+                # Write FASTA format
+                SeqIO.write(record, out, "fasta")
+
                 matched += 1
 
     print(f"✔ Extracted {matched} matching reads")
@@ -70,14 +74,14 @@ def extract_reads_from_fasta(fasta_gz, read_ids, output_fasta):
 def main():
 
     parser = argparse.ArgumentParser(
-        description="Extract reads from a specific chromosome and allele and match with FASTA"
+        description="Extract reads from a specific chromosome and allele and output FASTA"
     )
 
     parser.add_argument("--input", required=True, help="Input TSV file")
     parser.add_argument("--fasta_gz", required=True, help="Gzipped FASTA file")
     parser.add_argument("--chr", required=True, help="Chromosome to extract (e.g. chr22p)")
     parser.add_argument("--allele", required=True, help="Allele ID (e.g. 22)")
-    parser.add_argument("--output", default="matched_reads.fasta")
+    parser.add_argument("--output", default="matched_reads.fasta", help="Output FASTA file")
 
     args = parser.parse_args()
 
@@ -87,7 +91,7 @@ def main():
         args.allele
     )
 
-   extract_reads_from_fasta(
+    extract_reads_from_fasta(
         args.fasta_gz,
         read_ids,
         args.output
