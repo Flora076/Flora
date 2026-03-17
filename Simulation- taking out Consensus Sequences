@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+
+import pandas as pd
+import argparse
+
+
+def load_and_filter_tvr(tsv_file, chromosome, allele):
+    """
+    Load TSV and filter by chromosome and allele_id,
+    returning rows with tvr_consensus
+    """
+
+    df = pd.read_csv(tsv_file, sep="\t", dtype=str)
+
+    # Normalize column names
+    df.columns = df.columns.str.strip().str.lower()
+
+    chr_column = df.columns[0]  # first column = chromosome
+    allele_col = "allele_id"
+    tvr_col = "tvr_consensus"
+
+    # Check required columns
+    if allele_col not in df.columns:
+        raise ValueError(f"'allele_id' column not found. Columns: {list(df.columns)}")
+
+    if tvr_col not in df.columns:
+        raise ValueError(f"'tvr_consensus' column not found. Columns: {list(df.columns)}")
+
+    # Filter by chromosome and allele
+    df_filtered = df[
+        (df[chr_column] == chromosome) &
+        (df[allele_col] == allele)
+    ]
+
+    print(f"✔ Found {len(df_filtered)} matching rows for {chromosome} | allele {allele}")
+
+    return df_filtered
+
+
+def write_fasta(df, output_fasta):
+    """
+    Write tvr_consensus sequences into FASTA format
+    """
+
+    count = 0
+
+    with open(output_fasta, "w") as out:
+
+        for i, row in df.iterrows():
+
+            # Clean sequence (remove commas/spaces)
+            seq = str(row["tvr_consensus"]).replace(",", "").replace(" ", "").strip()
+
+            # Skip empty or NaN
+            if not seq or seq.lower() == "nan":
+                continue
+
+            # Build FASTA header
+            # Includes chromosome + optional position + allele
+            position = row["position"] if "position" in row else "NA"
+            header = f">{row.iloc[0]}:{position}_allele{row['allele_id']}_row{i}"
+
+            out.write(header + "\n")
+            out.write(seq + "\n")
+
+            count += 1
+
+    print(f"✔ Wrote {count} sequences to {output_fasta}")
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description="Extract tvr_consensus sequences as FASTA"
+    )
+
+    parser.add_argument("--input", required=True, help="Input TSV file")
+    parser.add_argument("--chr", required=True, help="Chromosome (e.g. chr1p)")
+    parser.add_argument("--allele", required=True, help="Allele ID")
+    parser.add_argument("--output", default="tvr_sequences.fasta", help="Output FASTA")
+
+    args = parser.parse_args()
+
+    df_filtered = load_and_filter_tvr(
+        args.input,
+        args.chr,
+        args.allele
+    )
+
+    write_fasta(
+        df_filtered,
+        args.output
+    )
+
+
+if __name__ == "__main__":
+    main()
