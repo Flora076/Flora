@@ -11,8 +11,8 @@ def main():
         description="Append X% of sequence from seq2 file onto seq1 sequence"
     )
 
-    parser.add_argument("--file1", required=True, help="FASTA file with seq1")
-    parser.add_argument("--file2", required=True, help="FASTA file with seq2")
+    parser.add_argument("--seq1", required=True, help="FASTA file with seq1")
+    parser.add_argument("--seq2", required=True, help="FASTA file with seq2")
     parser.add_argument("--output", default="modified.fasta", help="Output FASTA")
     parser.add_argument("--percent", type=float, default=10.0,
                         help="Percentage of seq2 to append to seq1")
