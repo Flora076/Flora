@@ -24,3 +24,9 @@ python simulation.py \
   --chr chr20q \
   --allele 1 \
   --output 20q_allele1_SRR26854884.fasta
+
+python percentage.py \
+  --seq1 file1.fasta \
+  --seq2 file2.fasta \
+  --percent 10 \
+  --output 10percent.fasta
