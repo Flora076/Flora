@@ -17,3 +17,10 @@ python extract.py \
 --chr chr22p \
 --allele 12 \
 --output 12_chr22p_reads.fasta
+
+
+python simulation.py \
+  --input /omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26854884/tlens_by_allele.tsv \
+  --chr chr20q \
+  --allele 1 \
+  --output 20q_allele1_SRR26854884.fasta
