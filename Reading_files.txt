@@ -26,7 +26,7 @@ python simulation.py \
   --output 20q_allele1_SRR26854884.fasta
 
 python percentage.py \
-  --seq1 file1.fasta \
-  --seq2 file2.fasta \
-  --percent 10 \
-  --output 10percent.fasta
+  --seq1  20q_allele20_SRR26854884.fasta \
+  --seq2 20q_allele1_SRR26854884.fasta \
+  --percent 90 \
+  --output 90percent.fasta
