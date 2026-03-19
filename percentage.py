@@ -30,9 +30,7 @@ def main():
     print(f"Length seq2: {len(record2.seq)}")
     print(f"Taking {n} bases from seq2 ({args.percent}%)")
 
-    # Take portion from seq2 (CHANGE HERE if needed)
-    portion = record2.seq[:n]      # first X%
-    # portion = record2.seq[-n:]   # ← use this instead for LAST X%
+    # portion = record2.seq[-n:] 
 
     # Append to seq1
     record1.seq = record1.seq + portion
