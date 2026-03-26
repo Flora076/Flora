@@ -31,4 +31,4 @@ python percentage.py \
   --percent 20 \
   --output 20percent.fasta
 
-python fixed.py --inputs 20q_allele20_SRR26854884.fasta 20q_allele1_SRR26854884.fasta 10percent.fasta --output 10p.fasta
+python fixed.py --inputs 20q_allele20_SRR26854884.fasta 20q_allele1_SRR26854884.fasta 90percent.fasta --output 90p.fasta
