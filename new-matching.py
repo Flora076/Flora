@@ -70,6 +70,7 @@ def main():
     p.add_argument("--fasta",       required=True, help="Gzipped FASTA file")
     p.add_argument("--keys",        default="keys.json",         help="Motif dictionary (JSON)")
     p.add_argument("--reads",   default="matched_reads.tsv", help="Extracted reads")
+    p.add_argument("--counts",  default="motif_counts.tsv",  help="Per-read motif counts")
     p.add_argument("--summary", default="motif_summary.tsv", help="Total counts per motif")
     args = p.parse_args()
 
@@ -82,12 +83,12 @@ def main():
     print(f"✔ Reads written to {args.reads}")
 
     counts_df = count_motifs(reads_df, motifs)
-    counts_df.to_csv(args.counts_out, sep="\t", index=False)
-    print(f"✔ Per-read counts written to {args.counts_out}")
+    counts_df.to_csv(args.counts, sep="\t", index=False)
+    print(f"✔ Per-read counts written to {args.counts}")
 
     summary = build_summary(counts_df, motifs)
-    summary.to_csv(args.summary_out, sep="\t", index=False)
-    print(f"✔ Summary written to {args.summary_out}\n")
+    summary.to_csv(args.summary, sep="\t", index=False)
+    print(f"✔ Summary written to {args.summary}\n")
     print(summary.to_string(index=False))
 
 
