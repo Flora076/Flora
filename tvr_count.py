@@ -1,4 +1,4 @@
-mport pandas as pd
+import pandas as pd
 from collections import Counter
 from pathlib import Path
 
