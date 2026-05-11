@@ -4,13 +4,14 @@ from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 BASE_ROOT  = Path("/omics/groups/OE0436/data/linmq/Datasets")
-CELL_TYPES = ["osteosarcoma", "neuroblastoma", "lung_adenocarcinoma"]
+CELL_TYPES = ["iPSC", "fibroblast", "fibrosarcoma", "HG002"]
 
 OFFSETS    = [0, 50, 100, 150, 200, 250, 300, 350]   
 
 SEQ_COL    = "tvr_consensus"
-OUTPUT     = "ALT+_all_counts.tsv"
+OUTPUT     = "ALT-_all_counts.tsv"
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def read_srr_list(fp: Path) -> list[str]:
     with open(fp) as f:
@@ -36,6 +37,7 @@ def count_tvr(
     for seq in df[seq_col].astype(str):
 
         if len(seq) > offset:
+
             trimmed = seq[offset:]
 
             total.update(trimmed)
@@ -66,8 +68,8 @@ def process_cell_type(cell_type: str):
         if not fp.exists():
             print(f"⚠️  Missing: {fp}")
             continue
-            
-       df = pd.read_csv(fp, sep="\t", dtype=str).fillna("")
+
+        df = pd.read_csv(fp, sep="\t", dtype=str).fillna("")
 
         for offset in OFFSETS:
 
@@ -97,7 +99,8 @@ if __name__ == "__main__":
 
     all_rows = []
     all_symbols = set()
-   for cell_type in CELL_TYPES:
+
+    for cell_type in CELL_TYPES:
 
         print(f"🔹 Processing: {cell_type}")
 
@@ -131,4 +134,3 @@ if __name__ == "__main__":
             f"({len(combined)} rows, "
             f"{len(all_symbols_sorted)} symbol columns)"
         )
-
