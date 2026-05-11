@@ -40,3 +40,7 @@ python new-matching.py \
   --reads testing.tsv \
   --summary testing-summary.tsv
 
+python new-matching.py \
+  --cell_type fibrosarcoma \
+  --srr SRR26842344 \
+  --summary /omics/groups/OE0436/data/linmq/Datasets/fibrosarcoma_SRR26842344.tsv
