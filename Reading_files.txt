@@ -32,3 +32,10 @@ python matched-sumof-cell-line.py \
   --cell_type fibrosarcoma \
   --srr /omics/groups/OE0436/data/linmq/analysis/fibrosarcoma.txt  \
   --out_dir /omics/groups/OE0436/data/linmq/Datasets/pattern/fibrosarcoma
+
+python plot.py \
+  --in_dir  /omics/groups/OE0436/data/linmq/Datasets/pattern/osteosarcoma \
+  --out_dir /omics/groups/OE0436/data/linmq/Datasets/pattern \
+  --prefix  osteosarcoma
+
+scp m338n@odcf-worker01.dkfz.de:/omics/groups/OE0436/data/linmq/Datasets/pattern/osteosarcoma/reverse_matches.png /home/m338n
