@@ -5,11 +5,6 @@ python reduction.py \
     --input your_input.tsv \
     --output reduced.tsv
 
-python matched.py \
-    --input your_file.tsv \
-    --fasta your_sequences.fa.gz \
-    --output matched_reads.tsv
-
 
 python extract.py \
 --input /omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26854884/tlens_by_allele.tsv \
@@ -33,7 +28,7 @@ python percentage.py \
 
 python fixed.py --inputs 20q_allele20_SRR26854884.fasta 20q_allele1_SRR26854884.fasta 90percent.fasta --output 90p.fasta
 
-python new-matching.py \
+python matched-sumof-cell-line.py \
   --cell_type fibrosarcoma \
-  --srr SRR26842344 \
-  --summary /omics/groups/OE0436/data/linmq/Datasets/pattern/fibrosarcoma_SRR26842344.tsv
+  --srr /omics/groups/OE0436/data/linmq/analysis/fibrosarcoma.txt  \
+  --out_dir /omics/groups/OE0436/data/linmq/Datasets/pattern/fibrosarcoma
