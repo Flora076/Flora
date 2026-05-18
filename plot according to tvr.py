@@ -29,24 +29,50 @@ COLOR_NEG = "#4a90d9"   # ALT-
 
 def normalise(df: pd.DataFrame, tvr_cols: list[str]) -> pd.DataFrame:
     """
-    For each SRR, divide every TVR count by that SRR's total_symbols
-    at offset 0 (the starting total read count).
-    Returns a new DataFrame with the same shape but normalised TVR columns.
+    Normalise each TVR within each SRR so every SRR contributes equally.
     """
-    out_frames = []
+
+    out = []
+
     for srr, grp in df.groupby("SRR"):
-        ref = grp.loc[grp["offset"] == grp["offset"].min(), "total_symbols"].values[0]
+
         g = grp.copy()
-        g[tvr_cols] = g[tvr_cols].div(ref)
-        out_frames.append(g)
-    return pd.concat(out_frames, ignore_index=True)
+        for tvr in tvr_cols:
+            total = g[tvr].sum()
 
+            # avoid divide-by-zero
+            if total > 0:
+                g[tvr] = g[tvr] / total
 
-def mean_by_offset(df: pd.DataFrame, tvr_cols: list[str]) -> pd.DataFrame:
-    """Average normalised TVR values across all SRRs, grouped by offset."""
-    return df.groupby("offset")[tvr_cols].mean().reset_index()
+        out.append(g)
 
+    return pd.concat(out, ignore_index=True)
 
+def summarise_by_offset(df: pd.DataFrame,
+                        tvr_cols: list[str],
+                        group_name: str) -> pd.DataFrame:
+    """
+    Compute mean, SD, SEM and sample count per offset for each TVR.
+    """
+
+    all_stats = []
+
+    for tvr in tvr_cols:
+
+        stats = (
+            df.groupby("offset")[tvr]
+              .agg(["mean", "std", "count"])
+              .reset_index()
+        )
+
+        stats["sem"] = stats["std"] / np.sqrt(stats["count"])
+
+        stats["TVR"] = tvr
+        stats["group"] = group_name
+
+        all_stats.append(stats)
+
+    return pd.concat(all_stats, ignore_index=True)
 # ── Load & normalise ─────────────────────────────────────────────────────────
 
 print("Reading ALT+ file …")
@@ -62,11 +88,24 @@ print(f"✔ TVR columns used: {tvr_cols}")
 df_pos_norm = normalise(df_pos, tvr_cols)
 df_neg_norm = normalise(df_neg, tvr_cols)
 
-mean_pos = mean_by_offset(df_pos_norm, tvr_cols)
-mean_neg = mean_by_offset(df_neg_norm, tvr_cols)
+summary_pos = summarise_by_offset(
+    df_pos_norm,
+    tvr_cols,
+    "ALT+"
+)
+
+summary_neg = summarise_by_offset(
+    df_neg_norm,
+    tvr_cols,
+    "ALT-"
+)
+
+summary_all = pd.concat(
+    [summary_pos, summary_neg],
+    ignore_index=True
+)
 
 # ── Plot ─────────────────────────────────────────────────────────────────────
-
 n_cols  = 4
 n_rows  = int(np.ceil(len(tvr_cols) / n_cols))
 
@@ -78,22 +117,52 @@ fig, axes = plt.subplots(
 axes = axes.flatten()
 
 for i, tvr in enumerate(tvr_cols):
+
     ax = axes[i]
 
-    ax.scatter(mean_pos["offset"], mean_pos[tvr],
-               color=COLOR_POS, s=25, label="ALT+", alpha=0.85)
-    ax.plot(mean_pos["offset"], mean_pos[tvr],
-            color=COLOR_POS, linewidth=1, alpha=0.5)
+    pos = summary_pos[summary_pos["TVR"] == tvr]
+    neg = summary_neg[summary_neg["TVR"] == tvr]
 
-    ax.scatter(mean_neg["offset"], mean_neg[tvr],
-               color=COLOR_NEG, s=25, label="ALT-", alpha=0.85)
-    ax.plot(mean_neg["offset"], mean_neg[tvr],
-            color=COLOR_NEG, linewidth=1, alpha=0.5)
+    # ALT+
+    ax.plot(
+        pos["offset"],
+        pos["mean"],
+        color=COLOR_POS,
+        linewidth=2,
+        label="ALT+"
+    )
+
+    ax.fill_between(
+        pos["offset"],
+        pos["mean"] - pos["sem"],
+        pos["mean"] + pos["sem"],
+        color=COLOR_POS,
+        alpha=0.25
+    )
+
+    # ALT-
+   ax.plot(
+        neg["offset"],
+        neg["mean"],
+        color=COLOR_NEG,
+        linewidth=2,
+        label="ALT-"
+    )
+
+    ax.fill_between(
+        neg["offset"],
+        neg["mean"] - neg["sem"],
+        neg["mean"] + neg["sem"],
+        color=COLOR_NEG,
+        alpha=0.25
+    )
 
     ax.set_title(f"TVR: {tvr}", fontsize=10, fontweight="bold")
-    ax.set_ylabel("Normalised count", fontsize=8)
+    ax.set_ylabel("Normalised proportion", fontsize=8)
     ax.set_xlabel("Offset", fontsize=8)
+
     ax.tick_params(labelsize=7)
+
     ax.grid(axis="y", linestyle="--", alpha=0.3)
 
 # hide any unused subplot panels
@@ -118,4 +187,13 @@ plt.close()
 
 print(f"\n✔ Plot saved → {OUT_PLOT}")
 
+OUT_STATS = Path("/omics/groups/OE0436/data/linmq/analysis/TVR_summary_stats.tsv")
+
+summary_all.to_csv(
+    OUT_STATS,
+    sep="\t",
+    index=False
+)
+
+print(f"✔ Stats table saved → {OUT_STATS}")
 
