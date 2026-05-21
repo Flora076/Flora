@@ -21,44 +21,36 @@ TARGET_TVRS = ["D", "F", "H", "I", "N"]
 COLOR_POS = "#e05c5c"   # ALT+
 COLOR_NEG = "#4a90d9"   # ALT-
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def load(fp: Path, label: str) -> pd.DataFrame:
+def load_and_normalise(fp: Path, label: str) -> pd.DataFrame:
+    """
+    Loads the TSV and normalizes the TVR counts to represent the fraction 
+    of total symbols at that EXACT offset, revealing true density.
+    """
     df = pd.read_csv(fp, sep="\t")
     df["alt_status"] = label
+    
+    # Filter out rows with zero total_symbols to avoid division by zero
+    df = df[df["total_symbols"] > 0].copy()
+    
     for col in TARGET_TVRS:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+            
+            # Vectorized normalization: divides the TVR count by the total symbols 
+            # in that specific row (offset), rather than anchoring to offset 0.
+            df[col] = df[col] / df["total_symbols"]
+            
     return df
-
-
-def normalise_per_srr(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    For each SRR divide every TVR count by that SRR's total_symbols at
-    offset 0, so all samples are on the same scale.
-    """
-    frames = []
-    for srr, grp in df.groupby("SRR"):
-        ref = grp.loc[grp["offset"] == grp["offset"].min(),
-                      "total_symbols"].values[0]
-        if ref == 0:
-            continue
-        g = grp.copy()
-        for col in TARGET_TVRS:
-            if col in g.columns:
-                g[col] = g[col] / ref
-        frames.append(g)
-    return pd.concat(frames, ignore_index=True)
-
 
 # ── Load & normalise ──────────────────────────────────────────────────────────
 
-print("Reading files …")
-df_pos = normalise_per_srr(load(ALT_POS_FILE, "ALT+"))
-df_neg = normalise_per_srr(load(ALT_NEG_FILE, "ALT-"))
+print("Reading and normalising files …")
+df_pos = load_and_normalise(ALT_POS_FILE, "ALT+")
+df_neg = load_and_normalise(ALT_NEG_FILE, "ALT-")
+
 combined = pd.concat([df_pos, df_neg], ignore_index=True)
-combined = combined[combined["total_symbols"] > 0]
 
 offsets = sorted(combined["offset"].unique())
 n_off   = len(offsets)
@@ -76,53 +68,54 @@ BOX_W   = 0.35
 SPACING = 1.2   # distance between offset groups
 
 for ax, tvr in zip(axes, TARGET_TVRS):
-    pos_boxes, neg_boxes = [], []
     x_ticks, x_labels   = [], []
 
     for i, off in enumerate(offsets):
         centre   = i * SPACING
-        pos_data = combined[(combined["offset"] == off) &
+        
+        pos_data = combined[(combined["offset"] == off) & 
                             (combined["alt_status"] == "ALT+")][tvr].dropna().values
-        neg_data = combined[(combined["offset"] == off) &
+        neg_data = combined[(combined["offset"] == off) & 
                             (combined["alt_status"] == "ALT-")][tvr].dropna().values
 
         # draw ALT+ box
         if len(pos_data) > 0:
-            bp = ax.boxplot(pos_data,
-                            positions=[centre - BOX_W / 2],
-                            widths=BOX_W,
-                            patch_artist=True,
-                            boxprops=dict(facecolor=COLOR_POS, alpha=0.7),
-                            medianprops=dict(color="black", linewidth=1.5),
-                            whiskerprops=dict(color=COLOR_POS),
-                            capprops=dict(color=COLOR_POS),
-                            flierprops=dict(marker="o", color=COLOR_POS,
-                                            markersize=3, alpha=0.5),
-                            manage_ticks=False)
+            ax.boxplot(pos_data,
+                       positions=[centre - BOX_W / 2],
+                       widths=BOX_W,
+                       patch_artist=True,
+                       showfliers=False,  # <--- CRITICAL FIX: Hides extreme outliers so IQR boxes scale properly
+                       boxprops=dict(facecolor=COLOR_POS, alpha=0.7),
+                       medianprops=dict(color="black", linewidth=1.5),
+                       whiskerprops=dict(color=COLOR_POS),
+                       capprops=dict(color=COLOR_POS),
+                       manage_ticks=False)
 
         # draw ALT- box
         if len(neg_data) > 0:
-            bn = ax.boxplot(neg_data,
-                            positions=[centre + BOX_W / 2],
-                            widths=BOX_W,
-                            patch_artist=True,
-                            boxprops=dict(facecolor=COLOR_NEG, alpha=0.7),
-                            medianprops=dict(color="black", linewidth=1.5),
-                            whiskerprops=dict(color=COLOR_NEG),
-                            capprops=dict(color=COLOR_NEG),
-                            flierprops=dict(marker="o", color=COLOR_NEG,
-                                            markersize=3, alpha=0.5),
-                            manage_ticks=False)
+            ax.boxplot(neg_data,
+                       positions=[centre + BOX_W / 2],
+                       widths=BOX_W,
+                       patch_artist=True,
+                       showfliers=False,  # <--- CRITICAL FIX
+                       boxprops=dict(facecolor=COLOR_NEG, alpha=0.7),
+                       medianprops=dict(color="black", linewidth=1.5),
+                       whiskerprops=dict(color=COLOR_NEG),
+                       capprops=dict(color=COLOR_NEG),
+                       manage_ticks=False)
 
         x_ticks.append(centre)
         x_labels.append(str(off))
 
     ax.set_xticks(x_ticks)
     ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=8)
-    ax.set_xlabel("Offset", fontsize=10)
-    ax.set_ylabel("Normalised count", fontsize=10)
+    ax.set_xlabel("Offset (bp)", fontsize=10)
+    ax.set_ylabel("TVR Proportion (Count / Total Symbols)", fontsize=10)
     ax.set_title(f"TVR: {tvr}", fontsize=12, fontweight="bold")
     ax.grid(axis="y", linestyle="--", alpha=0.3)
+    
+    # Ground the y-axis at 0 to establish a clean baseline for proportion comparison
+    ax.set_ylim(bottom=0)
 
 # shared legend
 handles = [
@@ -132,8 +125,9 @@ handles = [
 fig.legend(handles=handles, loc="upper right", fontsize=10,
            title="Group", title_fontsize=10, frameon=True)
 
-fig.suptitle("Normalised TVR counts by offset — ALT+ vs ALT−\n(D, F, H, I, N)",
-             fontsize=13, fontweight="bold")
+# Adjusted title layout so it doesn't overlap
+fig.suptitle("TVR Proportion by Offset — ALT+ vs ALT−\n(D, F, H, I, N)",
+             fontsize=13, fontweight="bold", y=1.05)
 
 plt.tight_layout()
 OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
