@@ -38,4 +38,9 @@ python plot.py \
   --out_dir /omics/groups/OE0436/data/linmq/Datasets/pattern \
   --prefix  osteosarcoma
 
+python matched-plot.py \
+  --input_tsv  /omics/groups/OE0436/data/linmq/Datasets/pattern/osteosarcoma/osteosarcoma_combined_motifs.tsv \
+  --cell_type osteosarcoma \
+  --out_dir  /omics/groups/OE0436/data/linmq/Datasets/pattern 
+
 scp m338n@odcf-worker01.dkfz.de:/omics/groups/OE0436/data/linmq/Datasets/pattern/osteosarcoma/reverse_matches.png /home/m338n
