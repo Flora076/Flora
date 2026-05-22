@@ -28,7 +28,7 @@ python percentage.py \
 
 python fixed.py --inputs 20q_allele20_SRR26854884.fasta 20q_allele1_SRR26854884.fasta 90percent.fasta --output 90p.fasta
 
-python matched-sumof-cell-line.py \
+python matched.py \
   --cell_type fibrosarcoma \
   --srr /omics/groups/OE0436/data/linmq/analysis/fibrosarcoma.txt  \
   --out_dir /omics/groups/OE0436/data/linmq/Datasets/pattern/fibrosarcoma
