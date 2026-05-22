@@ -16,6 +16,15 @@ OUT_FILE = Path("/omics/groups/OE0436/data/linmq/analysis/DFHIN_boxplot.png")
 
 TARGET_TVRS = ["D", "F", "H", "I", "N"]
 
+# Legend mapping letters to their specific sequences
+TVR_MOTIFS = {
+    "D": "TCAGGG",
+    "F": "TGAGGG",
+    "H": "TTGGGG",
+    "I": "TTTGGG",
+    "N": "TTCGGG"
+}
+
 # ── Colours ───────────────────────────────────────────────────────────────────
 
 COLOR_POS = "#e05c5c"   # ALT+
@@ -111,7 +120,9 @@ for ax, tvr in zip(axes, TARGET_TVRS):
     ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=8)
     ax.set_xlabel("Offset (bp)", fontsize=10)
     ax.set_ylabel("TVR Proportion (Count / Total Symbols)", fontsize=10)
-    ax.set_title(f"TVR: {tvr}", fontsize=12, fontweight="bold")
+    
+    # Updated title to include the sequence motif for each specific TVR
+    ax.set_title(f"TVR: {tvr} ({TVR_MOTIFS.get(tvr, '')})", fontsize=12, fontweight="bold")
     ax.grid(axis="y", linestyle="--", alpha=0.3)
     
     # Ground the y-axis at 0 to establish a clean baseline for proportion comparison
@@ -125,8 +136,9 @@ handles = [
 fig.legend(handles=handles, loc="upper right", fontsize=10,
            title="Group", title_fontsize=10, frameon=True)
 
-# Adjusted title layout so it doesn't overlap
-fig.suptitle("TVR Proportion by Offset — ALT+ vs ALT−\n(D, F, H, I, N)",
+# Adjusted title layout to include the motif legend clearly
+fig.suptitle("TVR Proportion by Offset — ALT+ vs ALT−\n"
+             "(D: TCAGGG, F: TGAGGG, H: TTGGGG, I: TTTGGG, N: TTCGGG)",
              fontsize=13, fontweight="bold", y=1.05)
 
 plt.tight_layout()
