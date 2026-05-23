@@ -4,13 +4,12 @@ from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 BASE_ROOT  = Path("/omics/groups/OE0436/data/linmq/Datasets")
-# Make sure your target cell types are listed here
-CELL_TYPES = ["iPSC", "fibroblast", "fibrosarcoma", "HG002", "neuroblastoma"]
+CELL_TYPES = ["osteosarcoma", "neuroblastoma", "lung_adenocarcinoma"]
 
-# Add the specific SRR IDs you want to exclude here
+# Put the exact SRR IDs you want to banish from the table in this list
 EXCLUDE_SRRS = [
-    "SRR_ID_1", 
-    "SRR_ID_2"
+    "SRR26842322", 
+    "SRR26854885"
 ]
 
 OFFSETS    = [0, 50, 100, 150, 200, 250, 300, 350]   
