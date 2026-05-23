@@ -14,7 +14,7 @@ EXCLUDE_SRRS = [
 OFFSETS    = [0, 50, 100, 150, 200, 250, 300, 350]   
 
 SEQ_COL    = "tvr_consensus"
-OUTPUT     = "ALT-_all_counts.tsv"
+OUTPUT     = "ALT+_all_counts.tsv"
 # ─────────────────────────────────────────────────────────────────────────────
 
 
