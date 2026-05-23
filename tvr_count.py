@@ -6,6 +6,11 @@ from pathlib import Path
 BASE_ROOT  = Path("/omics/groups/OE0436/data/linmq/Datasets")
 CELL_TYPES = ["iPSC", "fibroblast", "fibrosarcoma", "HG002"]
 
+# Put the exact SRR IDs you want to banish from the table in this list
+EXCLUDE_SRRS = [
+    "SRR1234567", 
+    "SRR9876543"
+]
 OFFSETS    = [0, 50, 100, 150, 200, 250, 300, 350]   
 
 SEQ_COL    = "tvr_consensus"
@@ -62,7 +67,12 @@ def process_cell_type(cell_type: str):
     all_symbols = set()
 
     for srr in srr_ids:
-
+        
+# --- NEW FILTERING LOGIC ---
+        if srr in EXCLUDE_SRRS:
+            print(f"⏭️ Skipping excluded SRR: {srr}")
+            continue  # This skips the rest of the loop and moves to the next SRR
+        # ---------------------------
         fp = base / srr / "tlens_by_allele.tsv"
 
         if not fp.exists():
