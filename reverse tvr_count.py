@@ -4,12 +4,19 @@ from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 BASE_ROOT  = Path("/omics/groups/OE0436/data/linmq/Datasets")
-CELL_TYPES = ["iPSC", "fibroblast", "fibrosarcoma", "HG002"]
+# Make sure your target cell types are listed here
+CELL_TYPES = ["iPSC", "fibroblast", "fibrosarcoma", "HG002", "neuroblastoma"]
+
+# Add the specific SRR IDs you want to exclude here
+EXCLUDE_SRRS = [
+    "SRR_ID_1", 
+    "SRR_ID_2"
+]
 
 OFFSETS    = [0, 50, 100, 150, 200, 250, 300, 350]   
 
 SEQ_COL    = "tvr_consensus"
-OUTPUT     = "ALT-_all_counts_reverse_offset.tsv" # Changed output name to avoid overwriting
+OUTPUT     = "ALT-_all_counts_reverse_offset.tsv" 
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -67,6 +74,12 @@ def process_cell_type(cell_type: str):
     all_symbols = set()
 
     for srr in srr_ids:
+
+        # --- NEW FILTERING LOGIC ---
+        if srr in EXCLUDE_SRRS:
+            print(f"⏭️ Skipping excluded SRR: {srr}")
+            continue
+        # ---------------------------
 
         fp = base / srr / "tlens_by_allele.tsv"
 
