@@ -8,8 +8,8 @@ CELL_TYPES = ["iPSC", "fibroblast", "fibrosarcoma", "HG002"]
 
 # Put the exact SRR IDs you want to banish from the table in this list
 EXCLUDE_SRRS = [
-    "SRR1234567", 
-    "SRR9876543"
+    "SRR26842322", 
+    "SRR26854885"
 ]
 OFFSETS    = [0, 50, 100, 150, 200, 250, 300, 350]   
 
