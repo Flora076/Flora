@@ -11,7 +11,8 @@ ALT_NEG_FILE = Path("/omics/groups/OE0436/data/linmq/analysis/ALT-_all_counts.ts
 
 # ── Output ───────────────────────────────────────────────────────────────────
 
-OUT_PLOT = Path("/omics/groups/OE0436/data/linmq/analysis/TVR_plot.png")
+# Plot output only
+OUT_PLOT = Path("/omics/groups/OE0436/data/linmq/analysis/TVR_plot_correct.png")
 
 # ── TVR columns to include ───────────────────────────────────────────────────
 # Remove any letters from this list to exclude them from the plot
@@ -29,24 +30,37 @@ COLOR_NEG = "#4a90d9"   # ALT-
 
 def normalise(df: pd.DataFrame, tvr_cols: list[str]) -> pd.DataFrame:
     """
-    Normalise each TVR within each SRR so every SRR contributes equally.
+    Normalise each TVR within each SRR by dividing by the total sequence length
+    (total_symbols) at the baseline offset (0). This ensures accurate biological abundance.
     """
+    frames = []
 
-    out = []
+    # Ensure TVR columns are numeric
+    for col in tvr_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
     for srr, grp in df.groupby("SRR"):
-
+        
+        # Find the baseline total sequence length (at the minimum offset)
+        ref_data = grp.loc[grp["offset"] == grp["offset"].min(), "total_symbols"]
+        
+        if len(ref_data) == 0:
+            continue
+            
+        ref = ref_data.values[0]
+        
+        # Avoid divide-by-zero
+        if ref == 0:
+            continue
+            
         g = grp.copy()
-        for tvr in tvr_cols:
-            total = g[tvr].sum()
+        for col in tvr_cols:
+            g[col] = g[col] / ref
+            
+        frames.append(g)
 
-            # avoid divide-by-zero
-            if total > 0:
-                g[tvr] = g[tvr] / total
-
-        out.append(g)
-
-    return pd.concat(out, ignore_index=True)
+    return pd.concat(frames, ignore_index=True)
 
 def summarise_by_offset(df: pd.DataFrame,
                         tvr_cols: list[str],
@@ -54,7 +68,6 @@ def summarise_by_offset(df: pd.DataFrame,
     """
     Compute mean, SD, SEM and sample count per offset for each TVR.
     """
-
     all_stats = []
 
     for tvr in tvr_cols:
@@ -66,13 +79,14 @@ def summarise_by_offset(df: pd.DataFrame,
         )
 
         stats["sem"] = stats["std"] / np.sqrt(stats["count"])
-
         stats["TVR"] = tvr
         stats["group"] = group_name
 
         all_stats.append(stats)
 
     return pd.concat(all_stats, ignore_index=True)
+
+
 # ── Load & normalise ─────────────────────────────────────────────────────────
 
 print("Reading ALT+ file …")
@@ -141,7 +155,7 @@ for i, tvr in enumerate(tvr_cols):
     )
 
     # ALT-
-   ax.plot(
+    ax.plot(
         neg["offset"],
         neg["mean"],
         color=COLOR_NEG,
@@ -158,11 +172,10 @@ for i, tvr in enumerate(tvr_cols):
     )
 
     ax.set_title(f"TVR: {tvr}", fontsize=10, fontweight="bold")
-    ax.set_ylabel("Normalised proportion", fontsize=8)
+    ax.set_ylabel("Proportion of Total Sequence", fontsize=8) # Updated Label
     ax.set_xlabel("Offset", fontsize=8)
 
     ax.tick_params(labelsize=7)
-
     ax.grid(axis="y", linestyle="--", alpha=0.3)
 
 # hide any unused subplot panels
@@ -177,8 +190,8 @@ handles = [
 fig.legend(handles=handles, loc="lower right",
            fontsize=10, frameon=True, title="Group")
 
-fig.suptitle("TVR counts vs offset — ALT+ vs ALT- (normalised per SRR)",
-             fontsize=13, fontweight="bold", y=1.01)
+fig.suptitle("TVR Abundance vs Offset — ALT+ vs ALT- (Normalised by total length)",
+             fontsize=13, fontweight="bold", y=1.01) # Updated Title
 
 plt.tight_layout()
 OUT_PLOT.parent.mkdir(parents=True, exist_ok=True)
@@ -186,14 +199,3 @@ fig.savefig(OUT_PLOT, dpi=300, bbox_inches="tight")
 plt.close()
 
 print(f"\n✔ Plot saved → {OUT_PLOT}")
-
-OUT_STATS = Path("/omics/groups/OE0436/data/linmq/analysis/TVR_summary_stats.tsv")
-
-summary_all.to_csv(
-    OUT_STATS,
-    sep="\t",
-    index=False
-)
-
-print(f"✔ Stats table saved → {OUT_STATS}")
-
