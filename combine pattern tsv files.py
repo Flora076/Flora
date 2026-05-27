@@ -2,10 +2,9 @@ import pandas as pd
 
 # 1. Define the specific paths to your individual TSV files
 file_paths = [
-"/omics/groups/OE0436/data/linmq/Datasets/pattern/fibroblast/fibroblast_combined_motifs.tsv", 
-"/omics/groups/OE0436/data/linmq/Datasets/pattern/fibrosarcoma/fibrosarcoma_combined_motifs.tsv",
-"/omics/groups/OE0436/data/linmq/Datasets/pattern/iPSC/iPSC_combined_motifs.tsv",
-"/omics/groups/OE0436/data/linmq/Datasets/pattern/HG002/HG002_combined_motifs.tsv"
+"/omics/groups/OE0436/data/linmq/Datasets/pattern/osteosarcoma/osteosarcoma_combined_motifs.tsv",
+"/omics/groups/OE0436/data/linmq/Datasets/pattern/lung_adenocarcinoma/lung_adenocarcinoma_combined_motifs.tsv",
+"/omics/groups/OE0436/data/linmq/Datasets/pattern/neuroblastoma/neuroblastoma_combined_motifs.tsv"
 ]
 
 # 2. Create an empty list to store the data temporarily
@@ -26,7 +25,7 @@ for path in file_paths:
 combined_df = pd.concat(data_frames, ignore_index=True)
 
 # 5. Save the combined data into a new TSV file
-output_filename = "ALT-motifs.tsv"
+output_filename = "ALT+motifs.tsv"
 combined_df.to_csv(output_filename, sep='\t', index=False)
 
 print(f"\nAll files successfully combined into {output_filename}!")
