@@ -5,7 +5,6 @@ from pathlib import Path
 import pandas as pd
 from Bio import SeqIO
 
-
 # ── Constants ────────────────────────────────────────────────────────────────
 
 BASE_ROOT = Path("/omics/groups/OE0436/data/linmq/Datasets")
@@ -46,7 +45,7 @@ def extract_reads(fasta_gz: Path, read_ids: set[str], srr_id: str) -> list:
 
 def main():
     p = argparse.ArgumentParser(
-        description="Extract supporting reads from FASTA.gz files and save as a combined FASTA."
+        description="Extract supporting reads from FASTA.gz files and save as separate FASTAs per SRR."
     )
     p.add_argument("--cell_type", required=True, help="Cell-type subdirectory name")
     p.add_argument("--srr",       required=True, help="Path to SRR txt list")
@@ -57,7 +56,7 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     srr_ids = load_srr_list(args.srr)
-    all_records = []
+    total_files_saved = 0
 
     for srr in srr_ids:
         print(f"── Processing: {srr}")
@@ -71,15 +70,18 @@ def main():
 
         read_ids = load_supporting_reads(input_tsv)
         records  = extract_reads(fasta_gz, read_ids, srr)
-        all_records.extend(records)
 
-    if all_records:
-        out_file = out_dir / f"{args.cell_type}_supporting_reads.fasta"
-        with open(out_file, "w") as out_handle:
-            SeqIO.write(all_records, out_handle, "fasta")
-        print(f"\n✔ Saved {len(all_records)} reads → {out_file}")
-    else:
-        print("\n⚠ No matching reads found across all SRRs.")
+        # Write to a separate file for this specific SRR
+        if records:
+            out_file = out_dir / f"{args.cell_type}_{srr}_supporting_reads.fasta"
+            with open(out_file, "w") as out_handle:
+                SeqIO.write(records, out_handle, "fasta")
+            print(f"  ✔ Saved {len(records)} reads → {out_file}\n")
+            total_files_saved += 1
+        else:
+            print(f"  ⚠ No matching reads found for {srr}\n")
+            
+    print(f"Done! Successfully saved {total_files_saved} individual FASTA files.")
 
 if __name__ == "__main__":
     main()
