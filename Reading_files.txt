@@ -45,7 +45,7 @@ python matched-plot.py \
 
 scp m338n@odcf-worker01.dkfz.de:/omics/groups/OE0436/data/linmq/Datasets/pattern/osteosarcoma/reverse_matches.png /home/m338n
 
-python extract_supporting_reads.py \
-    --cell_type MyCell \
-    --srr srr_list.txt \
-    --out_dir ./output
+python extract_reads.py \
+    --cell_type osteosarcoma \
+    --srr /omics/groups/OE0436/data/linmq/analysis/osteosarcoma.txt \
+    --out_dir /omics/groups/OE0436/data/linmq/Datasets/reads
