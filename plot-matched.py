@@ -4,8 +4,8 @@ import seaborn as sns
 
 # 1. Load the two separate TSV files
 # Replace these with your actual file paths
-file_alt_plus = "ALT+motifs.tsv"
-file_alt_minus = "ALT-motifs.tsv"
+file_alt_plus = "/omics/groups/OE0436/data/linmq/Datasets/pattern-read/ALT+fwd_motifs.tsv"
+file_alt_minus = "/omics/groups/OE0436/data/linmq/Datasets/pattern-read/ALT-fwd_motifs.tsv"
 
 print("Loading files...")
 df_plus = pd.read_csv(file_alt_plus, sep='\t')
