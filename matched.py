@@ -27,11 +27,14 @@ def load_srr_list(txt_file: str) -> list[str]:
         if line.strip() and not line.startswith("#")
     ]
 
-def load_supporting_reads_and_tls(tsv_file: Path) -> tuple[set[str], float]:
+def load_read_tl_map(tsv_file: Path) -> dict[str, int]:
     """
+    Pairs each read ID (supporting_reads) with its read_TL value positionally
+    (1st ID ↔ 1st TL, 2nd ↔ 2nd, etc.).
+
     Returns:
-      - read_ids : set of read ID strings from supporting_reads
-      - total_tl : sum of all read_TLs values across all rows (normalisation denominator)
+      - read_tl_map : { read_id : tl_cutoff_length }
+        Only reads with a valid numeric TL are included.
     """
     df = pd.read_csv(tsv_file, sep="\t")
     df.columns = df.columns.str.strip().str.lower()
@@ -41,56 +44,71 @@ def load_supporting_reads_and_tls(tsv_file: Path) -> tuple[set[str], float]:
     if "read_tls" not in df.columns:
         raise ValueError("'read_tls' column missing.")
 
-    # Collect read IDs from supporting_reads
-    read_ids = {
-        r.strip() for cell in df["supporting_reads"].dropna()
-        for r in str(cell).replace(",", " ").split() if r.strip()
-    }
+    read_tl_map = {}
+    skipped = 0
 
-    # Sum all telomere lengths from read_TLs (comma-separated numbers per row)
-    total_tl = 0.0
-    for cell in df["read_tls"].dropna():
-        for val in str(cell).split(","):
-            val = val.strip()
-            if val:
-                try:
-                    total_tl += float(val)
-                except ValueError:
-                    pass
+    for _, row in df.iterrows():
+        read_ids = [r.strip() for r in str(row["supporting_reads"]).replace(",", " ").split() if r.strip()]
+        tl_vals  = [v.strip() for v in str(row["read_tls"]).split(",") if v.strip()]
 
-    return read_ids, total_tl
+        if len(read_ids) != len(tl_vals):
+            skipped += len(read_ids)
+            continue  # positional pairing impossible for this row
+
+        for rid, tl_str in zip(read_ids, tl_vals):
+            try:
+                read_tl_map[rid] = int(float(tl_str))  # cutoff length in bases
+            except ValueError:
+                continue
+
+    if skipped:
+        print(f"  ⚠  {skipped} reads skipped (supporting_reads / read_TLs length mismatch)")
+
+    return read_tl_map
 
 
 def process_single_srr(
     fasta_gz: Path,
-    read_ids: set[str],
+    read_tl_map: dict[str, int],
     motifs: dict[str, str],
     srr_id: str,
-    total_tl: float
 ) -> pd.DataFrame:
     """
-    Processes a single SRR and returns a formatted DataFrame.
-    Motif counts are normalised by the sum of read_TLs instead of total reads.
+    For each read in the FASTA that exists in read_tl_map:
+      - Trim the sequence to the first read_TL bases
+      - Scan the trimmed sequence for each motif (fwd + rev)
+
+    Normalises final counts by the sum of all read_TL cutoff lengths used.
     """
     totals = {k: {"fwd": 0, "rev": 0} for k in motifs}
     total_reads = 0
+    total_tl    = 0
 
     with gzip.open(fasta_gz, "rt") as handle:
         for record in SeqIO.parse(handle, "fasta"):
-            if record.id not in read_ids:
+            if record.id not in read_tl_map:
                 continue
+
+            tl_cutoff = read_tl_map[record.id]
+
+            # Trim the sequence to exactly read_TL bases
+            trimmed_seq = str(record.seq)[-tl_cutoff:]
+
+            if not trimmed_seq:
+                continue
+
             total_reads += 1
-            seq = str(record.seq)
+            total_tl    += tl_cutoff
+
             for k, motif in motifs.items():
                 rc = reverse_complement(motif)
-                totals[k]["fwd"] += len(re.findall(re.escape(motif), seq))
-                totals[k]["rev"] += len(re.findall(re.escape(rc), seq))
+                totals[k]["fwd"] += len(re.findall(re.escape(motif), trimmed_seq))
+                totals[k]["rev"] += len(re.findall(re.escape(rc),    trimmed_seq))
 
-    print(f"    → {total_reads} matching reads processed for {srr_id}")
-    print(f"    → total_TL used for normalisation: {total_tl:.2f}")
+    print(f"    → {total_reads} reads processed (trimmed to read_TL) for {srr_id}")
+    print(f"    → total bases scanned (sum of read_TLs): {total_tl}")
 
-    # Avoid division by zero
-    safe_tl = total_tl if total_tl > 0 else 1.0
+    safe_tl = total_tl if total_tl > 0 else 1
 
     rows = []
     for k, motif in motifs.items():
@@ -104,8 +122,8 @@ def process_single_srr(
             "Motif_Rev":    reverse_complement(motif),
             "Total_Fwd":    fwd,
             "Total_Rev":    rev,
-            "Norm_Fwd":     fwd / safe_tl,   # normalised by sum of read_TLs
-            "Norm_Rev":     rev / safe_tl,   # normalised by sum of read_TLs
+            "Norm_Fwd":     fwd / safe_tl,  # per base of telomere sequence scanned
+            "Norm_Rev":     rev / safe_tl,
         })
 
     return pd.DataFrame(rows)
@@ -122,7 +140,7 @@ def main():
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    motifs  = json.loads(Path(KEYS_FILE).read_text())
+    motifs = json.loads(Path(KEYS_FILE).read_text())
     print(f"✔ Loaded {len(motifs)} motifs")
 
     srr_ids      = load_srr_list(args.srr)
@@ -138,18 +156,20 @@ def main():
             print(f"  ⚠ Missing files — skipping {srr}\n")
             continue
 
-        read_ids, total_tl = load_supporting_reads_and_tls(input_tsv)
+        read_tl_map = load_read_tl_map(input_tsv)
 
-        if total_tl == 0:
-            print(f"  ⚠ Sum of read_TLs is 0 — skipping {srr}\n")
+        if not read_tl_map:
+            print(f"  ⚠ No valid read_TL mappings found — skipping {srr}\n")
             continue
 
-        srr_df = process_single_srr(fasta_gz, read_ids, motifs, srr, total_tl)
+        print(f"  ✔ {len(read_tl_map)} reads mapped to TL cutoffs")
+
+        srr_df = process_single_srr(fasta_gz, read_tl_map, motifs, srr)
         all_srr_data.append(srr_df)
 
     if all_srr_data:
         combined_df = pd.concat(all_srr_data, ignore_index=True)
-        out_file    = out_dir / f"{args.cell_type}_combined_motifs.tsv"
+        out_file    = out_dir / f"{args.cell_type}_rev_motifs.tsv"
         combined_df.to_csv(out_file, sep="\t", index=False)
         print(f"\n✔ Saved combined data for {len(all_srr_data)} SRRs → {out_file}")
     else:
