@@ -1,0 +1,78 @@
+import pandas as pd
+from pathlib import Path
+
+# ── Input: sample folders ─────────────────────────────────────────────────────
+# Just list the folder for each sample — the script finds tlens_by_allele.tsv
+# automatically inside each one.
+
+SAMPLE_DIRS = [
+    Path("/omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26854882"),
+    Path("/omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26854884"),
+    Path("/omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26842329"),
+    Path("/omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26854887"),
+    Path("/omics/groups/OE0436/data/linmq/Datasets/osteosarcoma/SRR26842273"),
+   ]
+
+TSV_FILENAME = "tlens_by_allele.tsv"   # filename expected inside every folder
+
+# ── Output ────────────────────────────────────────────────────────────────────
+OUT_FILE = Path("osteosarcoma-diff.tsv")
+
+# ── Bins (every 10%) ─────────────────────────────────────────────────────────
+BINS   = list(range(0, 101, 10))
+LABELS = [f"{BINS[i]}-{BINS[i+1]}%" for i in range(len(BINS) - 1)]
+
+# ── Processing ────────────────────────────────────────────────────────────────
+summary_rows = []
+
+for sample_dir in SAMPLE_DIRS:
+
+    tsv_file = sample_dir / TSV_FILENAME
+
+    if not tsv_file.exists():
+        print(f"⚠  Not found, skipping: {tsv_file}")
+        continue
+
+    print(f"Processing {sample_dir.name} …")
+    df = pd.read_csv(tsv_file, sep="\t")
+
+    pct_values = []
+
+    for _, row in df.iterrows():
+
+        read_lengths = [float(x) for x in str(row["read_lengths"]).split(",") if x.strip()]
+        tel_lengths  = [float(x) for x in str(row["read_TLs"]).split(",")     if x.strip()]
+
+        if len(read_lengths) != len(tel_lengths):
+            print(
+                f"  ⚠  Skipping row (chr={row.get('#chr','?')} pos={row.get('position','?')}): "
+                f"mismatch — {len(read_lengths)} read_lengths vs {len(tel_lengths)} read_TLs"
+            )
+            continue
+
+        for rl, tl in zip(read_lengths, tel_lengths):
+            if rl == 0:
+                continue
+            pct = (rl - tl) / rl * 100
+            pct_values.append(pct)
+
+    # Bin all pct values for this sample
+    binned = pd.cut(pct_values, bins=BINS, labels=LABELS,
+                    include_lowest=True, right=False)
+    counts = binned.value_counts().reindex(LABELS, fill_value=0)
+    total  = len(pct_values)
+
+    row_data = {"sample": sample_dir.name, "total_reads": total}
+    for label in LABELS:
+        n = counts[label]
+        row_data[label] = round(n / total * 100, 2) if total > 0 else 0.0
+
+    summary_rows.append(row_data)
+    print(f"  ✔ {total} reads binned")
+
+# ── Save ──────────────────────────────────────────────────────────────────────
+out_df = pd.DataFrame(summary_rows)
+out_df.to_csv(OUT_FILE, sep="\t", index=False)
+
+print(f"\n✔ Summary saved → {OUT_FILE}")
+print(out_df.to_string(index=False))
