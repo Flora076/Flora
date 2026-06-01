@@ -1,80 +1,66 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import argparse
-from pathlib import Path
+import seaborn as sns
 
-def plot_cell_type_data(tsv_path: Path, cell_type_name: str, out_dir: Path):
-    """Reads the combined TSV and plots Normalised Frequency vs Motif Length."""
-    
-    # Load the clustered TSV
-    df = pd.read_csv(tsv_path, sep="\t")
-    
-    # Get unique SRRs for the legend
-    srrs = df["SRR"].unique()
-    
-    fig, axes = plt.subplots(1, 2, figsize=(18, 7), sharex=True)
-    ax_fwd, ax_rev = axes[0], axes[1]
+# 1. Load the two separate TSV files
+# Replace these with your actual file paths
+file_alt_plus = "ALT+motifs.tsv"
+file_alt_minus = "ALT-motifs.tsv"
 
-    # Plot each SRR as a distinct group of points
-    for srr in srrs:
-        subset = df[df["SRR"] == srr]
-        
-        # Forward scatter
-        ax_fwd.scatter(
-            subset["Motif_Length"], 
-            subset["Norm_Fwd"], 
-            label=srr, alpha=0.8, s=45
-        )
-        
-        # Reverse scatter
-        ax_rev.scatter(
-            subset["Motif_Length"], 
-            subset["Norm_Rev"], 
-            label=srr, alpha=0.8, s=45
-        )
+print("Loading files...")
+df_plus = pd.read_csv(file_alt_plus, sep='\t')
+df_plus['ALT_Status'] = 'ALT+'  # Tag these rows as ALT+
 
-    # ── Formatting ────────────────────────────────────────────────────────
-    
-    unique_lengths = sorted(df["Motif_Length"].unique())
-    
-    # Forward Plot Details
-    ax_fwd.set_title(f"{cell_type_name}: Normalised Forward Motifs by Length", fontsize=14)
-    ax_fwd.set_xlabel("Pattern Length (bp)", fontsize=12)
-    ax_fwd.set_ylabel("Normalised Frequency (Count / Total Reads)", fontsize=12)
-    ax_fwd.set_xticks(unique_lengths)
-    ax_fwd.grid(axis="y", linestyle="--", alpha=0.4)
+df_minus = pd.read_csv(file_alt_minus, sep='\t')
+df_minus['ALT_Status'] = 'ALT-' # Tag these rows as ALT-
 
-    # Reverse Plot Details
-    ax_rev.set_title(f"{cell_type_name}: Normalised Reverse Motifs by Length", fontsize=14)
-    ax_rev.set_xlabel("Pattern Length (bp)", fontsize=12)
-    ax_rev.set_xticks(unique_lengths)
-    ax_rev.grid(axis="y", linestyle="--", alpha=0.4)
+# 2. Combine them into one DataFrame
+df_combined = pd.concat([df_plus, df_minus], ignore_index=True)
 
-    # Place legend outside the rightmost plot
-    ax_rev.legend(title="SRR Accession", bbox_to_anchor=(1.05, 1), loc='upper left')
+# 3. Reshape the data for plotting (Melting)
+# We are taking the Norm_Fwd and Norm_Rev columns and stacking them
+print("Reshaping data for plotting...")
+df_melted = df_combined.melt(
+    id_vars=['SRR', 'Motif_Length', 'ALT_Status'], # Columns to keep as-is
+    value_vars=['Norm_Fwd', 'Norm_Rev'],           # Columns to unpivot
+    var_name='Direction',
+    value_name='Normalized_Count'
+)
 
-    plt.tight_layout()
-    
-    # Save the plot
-    out_file = out_dir / f"{cell_type_name}_length_vs_freq.png"
-    fig.savefig(out_file, dpi=200, bbox_inches="tight")
-    plt.close()
-    
-    print(f"✔ Saved plot → {out_file}")
+# Rename the direction values to be more readable on the graph
+df_melted['Direction'] = df_melted['Direction'].map({
+    'Norm_Fwd': 'Forward',
+    'Norm_Rev': 'Backward'
+})
 
-if __name__ == "__main__":
-    p = argparse.ArgumentParser(description="Plot Motif Length vs Frequency from combined TSV")
-    p.add_argument("--input_tsv", required=True, help="Path to the combined TSV file")
-    p.add_argument("--cell_type", required=True, help="Name of the cell type for the title")
-    p.add_argument("--out_dir", default=".", help="Directory to save the PNG graph")
-    
-    args = p.parse_args()
-    
-    out_dir = Path(args.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    
-    input_path = Path(args.input_tsv)
-    if not input_path.exists():
-        print(f"Error: Could not find {input_path}")
-    else:
-        plot_cell_type_data(input_path, args.cell_type, out_dir)
+# 4. Create the plot
+# catplot lets us create side-by-side subplots using the 'col' parameter
+g = sns.catplot(
+    data=df_melted,
+    x='Motif_Length',
+    y='Normalized_Count',
+    hue='ALT_Status',
+    col='Direction',     # This creates two panels (Forward | Backward)
+    kind='bar',          # Creates a bar chart
+    errorbar='sd',       # Shows standard deviation across different SRRs
+    capsize=0.1,
+    palette=['#d95f02', '#1b9e77'], # Distinct colors for ALT+ and ALT-
+    height=6,
+    aspect=1.2
+)
+
+# 5. Customize labels and layout
+g.set_axis_labels("Motif Length (bp)", "Normalized Count")
+g.set_titles("{col_name} Strand") # Sets the title of each panel to "Forward Strand" / "Backward Strand"
+
+# Add a main title to the whole figure
+g.fig.subplots_adjust(top=0.85) # Make room for the main title
+g.fig.suptitle('Normalized Motif Frequency by Length and Direction (ALT+ vs ALT-)',
+               fontsize=16, fontweight='bold')
+
+# 6. Save the graph
+output_image = "ALT_Fwd_Rev_comparison.png"
+plt.savefig(output_image, dpi=300, bbox_inches='tight')
+
+print(f"Success! Plot saved locally as '{output_image}'")
+plt.show()
